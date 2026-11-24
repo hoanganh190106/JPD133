@@ -25,6 +25,7 @@ import {
   Trash2,
   Copy,
   Pencil,
+  ArrowLeftRight,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import vocabData from '../data/vocabulary_b1_11.json';
@@ -40,7 +41,8 @@ import {
   removeEditedVocabItem,
 } from '../utils/aiClient';
 
-const VOCAB_STATUS_KEY = 'jpd133_vocab_status_v1';
+const VOCAB_STATUS_KEY = 'jpd133_vocab_status_v2';
+const VOCAB_DIRECTION_KEY = 'jpd133_vocab_direction_v1';
 
 function hashWithSeed(str, seed) {
   let h = 2166136261 ^ seed;
@@ -116,6 +118,14 @@ export default function VocabPractice({ showFurigana, speech, speed, setSpeed })
   const [cardShowFurigana, setCardShowFurigana] = useState(showFurigana);
   const [prevGlobalFurigana, setPrevGlobalFurigana] = useState(showFurigana);
   const [isFlashcardCompleted, setIsFlashcardCompleted] = useState(false);
+  const [cardDirection, setCardDirection] = useState(() => {
+    try {
+      const saved = localStorage.getItem(VOCAB_DIRECTION_KEY);
+      return saved === 'vi-jp' ? 'vi-jp' : 'jp-vi';
+    } catch {
+      return 'jp-vi';
+    }
+  });
   const [reviewSessionIds, setReviewSessionIds] = useState(null); // null | array of word ids
   const [shuffleSessionIds, setShuffleSessionIds] = useState(null); // null | array of untouched word ids
   const [shuffleSeed, setShuffleSeed] = useState(null); // null = thứ tự gốc | number = đã tráo thẻ
@@ -129,6 +139,20 @@ export default function VocabPractice({ showFurigana, speech, speed, setSpeed })
       if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
     };
   }, []);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(VOCAB_DIRECTION_KEY, cardDirection);
+    } catch {
+      // Ignore storage error
+    }
+  }, [cardDirection]);
+
+  const handleToggleDirection = (dir) => {
+    if (dir === cardDirection) return;
+    setCardDirection(dir);
+    setIsFlipped(false);
+  };
 
   const handleCopyText = useCallback(async (text, key) => {
     if (!text) return;
@@ -1220,7 +1244,34 @@ export default function VocabPractice({ showFurigana, speech, speed, setSpeed })
                   </button>
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <div
+                    className="flex items-center bg-slate-100 dark:bg-slate-800 p-0.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs"
+                    title="Đổi chiều học thẻ: Nhật → Việt hoặc Việt → Nhật"
+                  >
+                    <button
+                      onClick={() => handleToggleDirection('jp-vi')}
+                      className={`px-2.5 py-1 rounded-lg font-bold transition-all ${
+                        cardDirection === 'jp-vi'
+                          ? 'bg-white dark:bg-slate-700 text-violet-700 dark:text-violet-300 shadow-2xs'
+                          : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
+                      }`}
+                    >
+                      Nhật → Việt
+                    </button>
+                    <button
+                      onClick={() => handleToggleDirection('vi-jp')}
+                      className={`flex items-center gap-1 px-2.5 py-1 rounded-lg font-bold transition-all ${
+                        cardDirection === 'vi-jp'
+                          ? 'bg-white dark:bg-slate-700 text-emerald-700 dark:text-emerald-300 shadow-2xs'
+                          : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
+                      }`}
+                    >
+                      <ArrowLeftRight className="w-3 h-3" />
+                      <span>Việt → Nhật</span>
+                    </button>
+                  </div>
+
                   <button
                     onClick={() => setCardShowFurigana(!cardShowFurigana)}
                     className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl font-semibold border transition-all ${
@@ -1267,64 +1318,12 @@ export default function VocabPractice({ showFurigana, speech, speed, setSpeed })
               </div>
 
               {/* 3D Flip Flashcard với hiệu ứng lướt chuyển trang */}
-              <div
-                key={`${currentWord.id}-${cardAnimKey}`}
-                className={`perspective-1000 ${
-                  slideDirection === 'prev' ? 'animate-card-prev' : 'animate-card-next'
-                }`}
-              >
-                <div
-                  onClick={handleCardFlipClick}
-                  className={`relative min-h-[340px] sm:min-h-[380px] w-full cursor-pointer preserve-3d transition-transform duration-500 ease-out ${
-                    isFlipped ? 'rotate-y-180' : ''
-                  }`}
-                >
-                  {/* FRONT FACE */}
-                  <div className="absolute inset-0 backface-hidden bg-gradient-to-br from-white via-violet-50/35 to-indigo-50/30 dark:from-slate-900 dark:via-slate-900 dark:to-violet-950/30 rounded-3xl border-2 border-violet-200/80 dark:border-slate-700/90 shadow-md p-6 sm:p-9 flex flex-col justify-between hover:border-violet-300 dark:hover:border-violet-700 transition-colors">
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-2 select-none">
-                        <span className="px-3 py-1 bg-violet-600 text-white rounded-xl text-xs font-bold shadow-2xs">
-                          Bài {currentWord.lesson}
-                        </span>
-                        {vocabStatus[currentWord.id] === 'mastered' && (
-                          <span className="px-2 py-0.5 rounded-lg bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 text-[11px] font-bold">
-                            Đã nhớ
-                          </span>
-                        )}
-                        {vocabStatus[currentWord.id] === 'review' && (
-                          <span className="px-2 py-0.5 rounded-lg bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300 text-[11px] font-bold">
-                            Cần ôn
-                          </span>
-                        )}
-                      </div>
-                      <span className="text-xs text-violet-600 dark:text-violet-400 font-semibold flex items-center gap-1 shrink-0 select-none">
-                        <RotateCw className="w-3.5 h-3.5" />
-                        <span>Lật thẻ</span>
-                      </span>
-                    </div>
-
-                    <div className="my-auto text-center space-y-3 py-4 flex flex-col items-center">
-                      {cardShowFurigana &&
-                        currentWord.reading &&
-                        currentWord.reading !== currentWord.word_jp && (
-                          <p
-                            onClick={(e) => e.stopPropagation()}
-                            className="inline-block px-2 py-0.5 rounded-lg text-sm sm:text-base font-bold text-violet-600 dark:text-violet-400 font-japanese select-text cursor-text"
-                          >
-                            {currentWord.reading}
-                          </p>
-                        )}
-                      <h2
-                        onClick={(e) => e.stopPropagation()}
-                        className="inline-block px-3 py-1 rounded-2xl text-3xl sm:text-5xl font-black text-slate-900 dark:text-white tracking-wide font-japanese select-text cursor-text"
-                      >
-                        {currentWord.word_jp}
-                      </h2>
-                      <p className="text-xs text-slate-400 dark:text-slate-500 select-none">
-                        Bôi trực tiếp lên chữ để copy • Nhấn vùng trống hoặc Space để lật thẻ
-                      </p>
-                    </div>
-
+              {(() => {
+                const renderCardFooter = (face) => {
+                  const isShowingJpMain = cardDirection === 'jp-vi' || face === 'back';
+                  const copyText = isShowingJpMain ? currentWord.word_jp : currentWord.meaning_vi;
+                  const copyKey = `${face}_word`;
+                  return (
                     <div
                       onClick={(e) => e.stopPropagation()}
                       className="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-slate-200/70 dark:border-slate-800 select-none"
@@ -1333,22 +1332,22 @@ export default function VocabPractice({ showFurigana, speech, speed, setSpeed })
                         <button
                           onClick={() => speech.speak(currentWord.reading || currentWord.word_jp, speed)}
                           className="flex items-center gap-2 px-4 py-2 bg-violet-100/90 dark:bg-violet-950/80 hover:bg-violet-200 dark:hover:bg-violet-900 text-violet-800 dark:text-violet-200 rounded-xl text-xs sm:text-sm font-bold transition-all"
-                          title="Nghe phát âm (Phím S)"
+                          title="Nghe phát âm tiếng Nhật (Phím S)"
                         >
                           <Volume2 className="w-4 h-4" />
                           <span>Phát âm ({speed}x)</span>
                         </button>
 
                         <button
-                          onClick={() => handleCopyText(currentWord.word_jp, 'front_word')}
+                          onClick={() => handleCopyText(copyText, copyKey)}
                           className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold border transition-all active:scale-95 ${
-                            copiedKey === 'front_word'
+                            copiedKey === copyKey
                               ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'
                               : 'bg-slate-100 dark:bg-slate-800 hover:bg-indigo-50 dark:hover:bg-indigo-950/60 text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-300 border-slate-200/80 dark:border-slate-700'
                           }`}
-                          title="Sao chép từ tiếng Nhật"
+                          title={isShowingJpMain ? 'Sao chép từ tiếng Nhật' : 'Sao chép nghĩa tiếng Việt'}
                         >
-                          {copiedKey === 'front_word' ? (
+                          {copiedKey === copyKey ? (
                             <>
                               <Check className="w-4 h-4" />
                               <span className="hidden sm:inline">Đã copy</span>
@@ -1408,13 +1407,95 @@ export default function VocabPractice({ showFurigana, speech, speed, setSpeed })
                         </button>
                       </div>
                     </div>
+                  );
+                };
+
+                return (
+              <div
+                key={`${currentWord.id}-${cardAnimKey}`}
+                className={`perspective-1000 ${
+                  slideDirection === 'prev' ? 'animate-card-prev' : 'animate-card-next'
+                }`}
+              >
+                <div
+                  onClick={handleCardFlipClick}
+                  className={`relative min-h-[340px] sm:min-h-[380px] w-full cursor-pointer preserve-3d transition-transform duration-500 ease-out ${
+                    isFlipped ? 'rotate-y-180' : ''
+                  }`}
+                >
+                  {/* FRONT FACE */}
+                  <div className="absolute inset-0 backface-hidden bg-gradient-to-br from-white via-violet-50/35 to-indigo-50/30 dark:from-slate-900 dark:via-slate-900 dark:to-violet-950/30 rounded-3xl border-2 border-violet-200/80 dark:border-slate-700/90 shadow-md p-6 sm:p-9 flex flex-col justify-between hover:border-violet-300 dark:hover:border-violet-700 transition-colors">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2 select-none">
+                        <span className="px-3 py-1 bg-violet-600 text-white rounded-xl text-xs font-bold shadow-2xs">
+                          Bài {currentWord.lesson}
+                        </span>
+                        {cardDirection === 'vi-jp' && (
+                          <span className="px-2 py-0.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/70 text-emerald-700 dark:text-emerald-300 border border-emerald-200/70 dark:border-emerald-800/60 text-[11px] font-bold">
+                            Việt → Nhật
+                          </span>
+                        )}
+                        {vocabStatus[currentWord.id] === 'mastered' && (
+                          <span className="px-2 py-0.5 rounded-lg bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 text-[11px] font-bold">
+                            Đã nhớ
+                          </span>
+                        )}
+                        {vocabStatus[currentWord.id] === 'review' && (
+                          <span className="px-2 py-0.5 rounded-lg bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300 text-[11px] font-bold">
+                            Cần ôn
+                          </span>
+                        )}
+                      </div>
+                      <span className="text-xs text-violet-600 dark:text-violet-400 font-semibold flex items-center gap-1 shrink-0 select-none">
+                        <RotateCw className="w-3.5 h-3.5" />
+                        <span>Lật thẻ</span>
+                      </span>
+                    </div>
+
+                    {cardDirection === 'jp-vi' ? (
+                      <div className="my-auto text-center space-y-3 py-4 flex flex-col items-center">
+                        {cardShowFurigana &&
+                          currentWord.reading &&
+                          currentWord.reading !== currentWord.word_jp && (
+                            <p
+                              onClick={(e) => e.stopPropagation()}
+                              className="inline-block px-2 py-0.5 rounded-lg text-sm sm:text-base font-bold text-violet-600 dark:text-violet-400 font-japanese select-text cursor-text"
+                            >
+                              {currentWord.reading}
+                            </p>
+                          )}
+                        <h2
+                          onClick={(e) => e.stopPropagation()}
+                          className="inline-block px-3 py-1 rounded-2xl text-3xl sm:text-5xl font-black text-slate-900 dark:text-white tracking-wide font-japanese select-text cursor-text"
+                        >
+                          {currentWord.word_jp}
+                        </h2>
+                        <p className="text-xs text-slate-400 dark:text-slate-500 select-none">
+                          Bôi trực tiếp lên chữ để copy • Nhấn vùng trống hoặc Space để lật thẻ
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="my-auto text-center space-y-3 py-4 flex flex-col items-center">
+                        <h2
+                          onClick={(e) => e.stopPropagation()}
+                          className="inline-block px-3 py-1 rounded-2xl text-2xl sm:text-4xl font-black text-slate-900 dark:text-white tracking-wide select-text cursor-text"
+                        >
+                          {currentWord.meaning_vi}
+                        </h2>
+                        <p className="text-xs text-slate-400 dark:text-slate-500 select-none">
+                          Nhớ từ tiếng Nhật tương ứng • Nhấn vùng trống hoặc Space để xem đáp án
+                        </p>
+                      </div>
+                    )}
+
+                    {renderCardFooter('front')}
                   </div>
 
                   {/* BACK FACE */}
                   <div className="absolute inset-0 backface-hidden rotate-y-180 bg-gradient-to-br from-white via-emerald-50/30 to-indigo-50/35 dark:from-slate-900 dark:via-slate-900 dark:to-emerald-950/25 rounded-3xl border-2 border-emerald-300/80 dark:border-emerald-700/70 shadow-md p-6 sm:p-9 flex flex-col justify-between">
                     <div className="flex items-center justify-between gap-2">
                       <span className="px-3 py-1 bg-emerald-600 text-white rounded-xl text-xs font-bold shadow-2xs select-none">
-                        Nghĩa &amp; Ví dụ
+                        {cardDirection === 'vi-jp' ? 'Đáp án Tiếng Nhật' : 'Nghĩa & Ví dụ'}
                       </span>
                       <span className="text-xs text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1 shrink-0 select-none">
                         <RotateCw className="w-3.5 h-3.5" />
@@ -1423,22 +1504,51 @@ export default function VocabPractice({ showFurigana, speech, speed, setSpeed })
                     </div>
 
                     <div className="my-auto text-center space-y-4 py-3 flex flex-col items-center">
-                      <div className="space-y-1.5 flex flex-col items-center">
-                        {currentWord.han_viet && (
-                          <span
+                      {cardDirection === 'jp-vi' ? (
+                        <div className="space-y-1.5 flex flex-col items-center">
+                          {currentWord.han_viet && (
+                            <span
+                              onClick={(e) => e.stopPropagation()}
+                              className="px-2.5 py-0.5 bg-purple-100 dark:bg-purple-950/80 text-purple-800 dark:text-purple-200 rounded-lg text-xs font-bold border border-purple-200/70 dark:border-purple-800/60 select-text cursor-text"
+                            >
+                              Âm Hán: {currentWord.han_viet}
+                            </span>
+                          )}
+                          <h3
                             onClick={(e) => e.stopPropagation()}
-                            className="px-2.5 py-0.5 bg-purple-100 dark:bg-purple-950/80 text-purple-800 dark:text-purple-200 rounded-lg text-xs font-bold border border-purple-200/70 dark:border-purple-800/60 select-text cursor-text"
+                            className="inline-block px-3 py-0.5 rounded-xl text-2xl sm:text-3xl font-black text-slate-900 dark:text-white select-text cursor-text"
                           >
-                            Âm Hán: {currentWord.han_viet}
-                          </span>
-                        )}
-                        <h3
-                          onClick={(e) => e.stopPropagation()}
-                          className="inline-block px-3 py-0.5 rounded-xl text-2xl sm:text-3xl font-black text-slate-900 dark:text-white select-text cursor-text"
-                        >
-                          {currentWord.meaning_vi}
-                        </h3>
-                      </div>
+                            {currentWord.meaning_vi}
+                          </h3>
+                        </div>
+                      ) : (
+                        <div className="space-y-2 flex flex-col items-center">
+                          {currentWord.han_viet && (
+                            <span
+                              onClick={(e) => e.stopPropagation()}
+                              className="px-2.5 py-0.5 bg-purple-100 dark:bg-purple-950/80 text-purple-800 dark:text-purple-200 rounded-lg text-xs font-bold border border-purple-200/70 dark:border-purple-800/60 select-text cursor-text"
+                            >
+                              Âm Hán: {currentWord.han_viet}
+                            </span>
+                          )}
+                          {cardShowFurigana &&
+                            currentWord.reading &&
+                            currentWord.reading !== currentWord.word_jp && (
+                              <p
+                                onClick={(e) => e.stopPropagation()}
+                                className="inline-block px-2 py-0.5 rounded-lg text-sm sm:text-base font-bold text-emerald-700 dark:text-emerald-300 font-japanese select-text cursor-text"
+                              >
+                                {currentWord.reading}
+                              </p>
+                            )}
+                          <h3
+                            onClick={(e) => e.stopPropagation()}
+                            className="inline-block px-3 py-0.5 rounded-2xl text-3xl sm:text-5xl font-black text-slate-900 dark:text-white tracking-wide font-japanese select-text cursor-text"
+                          >
+                            {currentWord.word_jp}
+                          </h3>
+                        </div>
+                      )}
 
                       {currentWord.example_jp && (
                         <div
@@ -1479,92 +1589,12 @@ export default function VocabPractice({ showFurigana, speech, speed, setSpeed })
                       )}
                     </div>
 
-                    <div
-                      onClick={(e) => e.stopPropagation()}
-                      className="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-slate-200/70 dark:border-slate-800 select-none"
-                    >
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <button
-                          onClick={() => speech.speak(currentWord.reading || currentWord.word_jp, speed)}
-                          className="flex items-center gap-2 px-4 py-2 bg-violet-100/90 dark:bg-violet-950/80 hover:bg-violet-200 dark:hover:bg-violet-900 text-violet-800 dark:text-violet-200 rounded-xl text-xs sm:text-sm font-bold transition-all"
-                          title="Nghe phát âm (Phím S)"
-                        >
-                          <Volume2 className="w-4 h-4" />
-                          <span>Phát âm ({speed}x)</span>
-                        </button>
-
-                        <button
-                          onClick={() => handleCopyText(currentWord.word_jp, 'back_word')}
-                          className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold border transition-all active:scale-95 ${
-                            copiedKey === 'back_word'
-                              ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'
-                              : 'bg-slate-100 dark:bg-slate-800 hover:bg-indigo-50 dark:hover:bg-indigo-950/60 text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-300 border-slate-200/80 dark:border-slate-700'
-                          }`}
-                          title="Sao chép từ tiếng Nhật"
-                        >
-                          {copiedKey === 'back_word' ? (
-                            <>
-                              <Check className="w-4 h-4" />
-                              <span className="hidden sm:inline">Đã copy</span>
-                            </>
-                          ) : (
-                            <>
-                              <Copy className="w-4 h-4" />
-                              <span className="hidden sm:inline">Copy chữ</span>
-                            </>
-                          )}
-                        </button>
-
-                        <button
-                          onClick={() => handleOpenEditModal(currentWord)}
-                          className="flex items-center gap-1.5 px-3 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-amber-50 dark:hover:bg-amber-950/60 text-slate-600 dark:text-slate-300 hover:text-amber-700 dark:hover:text-amber-300 border border-slate-200/80 dark:border-slate-700 rounded-xl text-xs font-semibold transition-all active:scale-95"
-                          title="Chỉnh sửa nội dung thẻ này"
-                        >
-                          <Pencil className="w-4 h-4" />
-                          <span className="hidden sm:inline">Sửa thẻ</span>
-                        </button>
-
-                        <button
-                          onClick={() => handleDeleteCard(currentWord)}
-                          className="flex items-center gap-1.5 px-3 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-rose-50 dark:hover:bg-rose-950/60 text-slate-500 dark:text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 border border-slate-200/80 dark:border-slate-700 rounded-xl text-xs font-semibold transition-all active:scale-95"
-                          title="Xóa thẻ này vĩnh viễn khỏi dữ liệu"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                          <span className="hidden sm:inline">Xóa thẻ</span>
-                        </button>
-                      </div>
-
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => handleMarkAndAdvance(currentWord.id, 'review')}
-                          className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-all active:scale-95 ${
-                            vocabStatus[currentWord.id] === 'review'
-                              ? 'bg-amber-500 text-white shadow-sm'
-                              : 'bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300 border border-amber-200/80 dark:border-amber-800/60 hover:bg-amber-100 dark:hover:bg-amber-900/60'
-                          }`}
-                          title="Đánh dấu cần ôn lại và chuyển sang từ tiếp theo"
-                        >
-                          <AlertCircle className="w-4 h-4" />
-                          <span>Cần ôn lại</span>
-                        </button>
-
-                        <button
-                          onClick={() => handleMarkAndAdvance(currentWord.id, 'mastered')}
-                          className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-all active:scale-95 ${
-                            vocabStatus[currentWord.id] === 'mastered'
-                              ? 'bg-emerald-600 text-white shadow-sm'
-                              : 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border border-emerald-200/80 dark:border-emerald-800/60 hover:bg-emerald-100 dark:hover:bg-emerald-900/60'
-                          }`}
-                          title="Đánh dấu đã nhớ và chuyển sang từ tiếp theo"
-                        >
-                          <CheckCircle2 className="w-4 h-4" />
-                          <span>Đã nhớ</span>
-                        </button>
-                      </div>
-                    </div>
+                    {renderCardFooter('back')}
                   </div>
                 </div>
               </div>
+                );
+              })()}
 
               <p className="text-center text-xs text-slate-400 dark:text-slate-500">
                 Phím tắt:{' '}

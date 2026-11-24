@@ -11,6 +11,9 @@ export function cleanForTTS(text) {
     .replace(/<[^>]+>/g, '')
     .replace(/（[^）]*）/g, '')
     .replace(/\([^)]*\)/g, '')
+    .replace(/［[^］]*］/g, '')
+    .replace(/\[[^\]]*\]/g, '')
+    .replace(/^(?:[ABＡＢ]\s*[:：]\s*)+/g, '')
     .trim();
 }
 

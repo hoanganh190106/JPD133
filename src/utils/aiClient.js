@@ -3,8 +3,8 @@
 
 const AI_CONFIG_KEY = 'jpd133_ai_config_v1';
 const CUSTOM_VOCAB_KEY = 'jpd133_custom_vocab_v1';
-const DELETED_VOCAB_KEY = 'jpd133_deleted_vocab_v1';
-const EDITED_VOCAB_KEY = 'jpd133_edited_vocab_v1';
+const DELETED_VOCAB_KEY = 'jpd133_deleted_vocab_v2';
+const EDITED_VOCAB_KEY = 'jpd133_edited_vocab_v2';
 const AI_HISTORY_KEY = 'jpd133_ai_lookup_history_v1';
 const AI_CACHE_KEY = 'jpd133_ai_translation_cache_v1';
 const MAX_CACHE_ENTRIES = 150;

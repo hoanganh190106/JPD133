@@ -3,7 +3,7 @@ import { X, Layers, Bot, Sparkles, KeyRound } from 'lucide-react';
 import vocabData from '../data/vocabulary_b1_11.json';
 import { getDeletedVocabIds } from '../utils/aiClient';
 
-const VOCAB_STATUS_KEY = 'jpd133_vocab_status_v1';
+const VOCAB_STATUS_KEY = 'jpd133_vocab_status_v2';
 
 export default function GeneralDrawer({ isOpen, onClose, activeTab, onOpenAiSettings }) {
   const activeVocab = useMemo(() => {
